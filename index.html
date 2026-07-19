@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anamorphic Screen Web Previewer</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- 3D WebGL Canvas -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- Sidebar Overlay -->
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <h1>Anamorphic</h1>
+      <span class="badge">WebGL Sim v1.0</span>
+    </div>
+    
+    <div class="sidebar-content">
+      <!-- Section: Video Input -->
+      <div class="control-group">
+        <label class="group-title">비디오 소스 (Video Source)</label>
+        <div class="video-loader-area">
+          <button id="btn-default-video" class="btn active">샘플 영상</button>
+          <label for="video-upload" class="btn btn-upload">
+            비디오 업로드
+            <input type="file" id="video-upload" accept="video/*" />
+          </label>
+        </div>
+        <div id="file-name" class="file-name">Default: sample_video.mp4</div>
+        <div class="video-playback-controls">
+          <button id="btn-play-pause" class="btn-icon">⏸ Pause</button>
+          <span id="video-time" class="video-time">0:00 / 0:00</span>
+        </div>
+      </div>
+
+      <!-- Section: Screen Selection -->
+      <div class="control-group">
+        <label class="group-title">스크린 모드 (Screen Mode)</label>
+        <div class="grid-buttons">
+          <button class="btn-mode active" data-mode="flat">
+            <span class="icon">⬜</span>
+            <span class="label">평면 (Flat)</span>
+          </button>
+          <button class="btn-mode" data-mode="lshape">
+            <span class="icon">📐</span>
+            <span class="label">L자형 (L-Shape)</span>
+          </button>
+          <button class="btn-mode" data-mode="cylinder">
+            <span class="icon">🌀</span>
+            <span class="label">원통형 (Cylinder)</span>
+          </button>
+          <button class="btn-mode" data-mode="sphere">
+            <span class="icon">🔮</span>
+            <span class="label">스피어 (Sphere)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Section: Screen Parameters -->
+      <div class="control-group" id="screen-params-group">
+        <label class="group-title">스크린 옵션 (Screen Options)</label>
+        
+        <div class="slider-row" id="row-screen-width">
+          <div class="slider-label">
+            <span>스크린 너비</span>
+            <span class="value" id="val-screen-width">16</span>
+          </div>
+          <input type="range" id="slide-screen-width" min="5" max="30" step="0.5" value="16" />
+        </div>
+
+        <div class="slider-row" id="row-screen-height">
+          <div class="slider-label">
+            <span>스크린 높이</span>
+            <span class="value" id="val-screen-height">9</span>
+          </div>
+          <input type="range" id="slide-screen-height" min="3" max="20" step="0.5" value="9" />
+        </div>
+
+        <!-- L-Shape only options -->
+        <div class="slider-row hidden" id="row-lshape-depth">
+          <div class="slider-label">
+            <span>L자 바닥 깊이</span>
+            <span class="value" id="val-lshape-depth">9</span>
+          </div>
+          <input type="range" id="slide-lshape-depth" min="3" max="20" step="0.5" value="9" />
+        </div>
+
+        <div class="slider-row hidden" id="row-lshape-angle">
+          <div class="slider-label">
+            <span>절곡 각도</span>
+            <span class="value" id="val-lshape-angle">90</span>
+          </div>
+          <input type="range" id="slide-lshape-angle" min="45" max="135" step="1" value="90" />
+        </div>
+
+        <!-- Cylinder & Sphere only options -->
+        <div class="slider-row hidden" id="row-curvature">
+          <div class="slider-label">
+            <span>곡률 반지름</span>
+            <span class="value" id="val-screen-radius">10</span>
+          </div>
+          <input type="range" id="slide-screen-radius" min="5" max="25" step="0.5" value="10" />
+        </div>
+
+        <div class="slider-row hidden" id="row-arc-angle">
+          <div class="slider-label">
+            <span>호 각도 (Arc)</span>
+            <span class="value" id="val-screen-arc">120</span>
+          </div>
+          <input type="range" id="slide-screen-arc" min="30" max="270" step="5" value="120" />
+        </div>
+      </div>
+
+      <!-- Section: Projector Settings -->
+      <div class="control-group">
+        <label class="group-title">가상 프로젝터 (Projector)</label>
+        
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>위치 X</span>
+            <span class="value" id="val-proj-x">0</span>
+          </div>
+          <input type="range" id="slide-proj-x" min="-15" max="15" step="0.2" value="0" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>위치 Y</span>
+            <span class="value" id="val-proj-y">0</span>
+          </div>
+          <input type="range" id="slide-proj-y" min="-10" max="10" step="0.2" value="0" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>위치 Z (거리)</span>
+            <span class="value" id="val-proj-z">15</span>
+          </div>
+          <input type="range" id="slide-proj-z" min="5" max="40" step="0.5" value="15" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>투사 FOV</span>
+            <span class="value" id="val-proj-fov">45</span>
+          </div>
+          <input type="range" id="slide-proj-fov" min="15" max="90" step="1" value="45" />
+        </div>
+      </div>
+
+      <!-- Action: Reset View -->
+      <button id="btn-reset-view" class="btn-glowing">
+        <span class="glow-effect"></span>
+        Reset View to Sweet Spot
+      </button>
+    </div>
+
+    <!-- Sidebar Footer -->
+    <div class="sidebar-footer">
+      <div class="tip-card">
+        <span class="tip-title">💡 시뮬레이터 팁</span>
+        <p>화면을 <strong>드래그</strong>하여 자유롭게 둘러보세요. 프로젝터 투사 기준점(Sweet Spot)에서 벗어나면 스크린 왜곡이 일어나며, <strong>Reset View</strong>를 누르면 완벽한 착시 시점으로 돌아갑니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
