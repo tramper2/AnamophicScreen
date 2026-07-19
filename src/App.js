@@ -36,8 +36,9 @@ export class App {
     this.videoLoader = new VideoLoader();
 
     // 4. Load initial default sample video
-    const defaultVideoPath = `${import.meta.env.BASE_URL}assets/sample_video.mp4`;
-    const videoTexture = this.videoLoader.loadDefault(defaultVideoPath);
+    // Use a dynamic cache-busting query parameter so the browser always fetches the latest video file
+    const defaultVideoPath = () => `${import.meta.env.BASE_URL}assets/sample_video.mp4?cb=${Date.now()}`;
+    const videoTexture = this.videoLoader.loadDefault(defaultVideoPath());
     this.canvasView.setVideoTexture(videoTexture);
     this.controlPanel.setPlayState(true);
 
@@ -58,7 +59,7 @@ export class App {
 
     // Reload Default Sample Video
     this.controlPanel.onDefaultVideoClick = () => {
-      const texture = this.videoLoader.loadDefault(defaultVideoPath);
+      const texture = this.videoLoader.loadDefault(defaultVideoPath());
       this.canvasView.setVideoTexture(texture);
       this.controlPanel.setPlayState(true);
     };
