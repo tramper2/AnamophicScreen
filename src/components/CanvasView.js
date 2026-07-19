@@ -89,6 +89,11 @@ export class CanvasView {
     gridHelper.position.y = -0.02;
     this.scene.add(gridHelper);
 
+    // Axes Helper (X = Red, Y = Green, Z = Blue) to visualize coordinate axes
+    const axesHelper = new THREE.AxesHelper(15);
+    axesHelper.position.set(0, 0, 0.01);
+    this.scene.add(axesHelper);
+
     // 8. Custom Shader Material
     this.shaderMaterial = new THREE.ShaderMaterial({
       vertexShader: vertShader,
@@ -126,8 +131,13 @@ export class CanvasView {
    */
   updateProjector() {
     this.projectorCamera.position.set(this.state.projX, this.state.projY, this.state.projZ);
-    // Projector points directly at the screen center (e.g. Y = screenHeight/2)
-    const targetY = this.state.screenMode === 'sphere' ? 0 : this.state.screenHeight / 2;
+    // Projector target Y: Flat/Cylinder -> screenHeight/2, Sphere -> 0, L-Shape (X-rotated) -> -screenHeight/2
+    let targetY = this.state.screenHeight / 2;
+    if (this.state.screenMode === 'sphere') {
+      targetY = 0;
+    } else if (this.state.screenMode === 'lshape') {
+      targetY = -this.state.screenHeight / 2;
+    }
     this.projectorCamera.lookAt(new THREE.Vector3(0, targetY, 0));
     
     this.projectorCamera.fov = this.state.projFov;
@@ -169,16 +179,19 @@ export class CanvasView {
       const w1 = screenWidth / 3.0; // Left wall width
       const w2 = (screenWidth * 2.0) / 3.0; // Right wall width
 
+      // Create a subgroup to assemble both walls so we can rotate the entire configuration
+      const lshapeGroup = new THREE.Group();
+
       // 1. Right wall (flat along X axis, extends from X=0 to W2)
       const rightGeo = new THREE.PlaneGeometry(w2, screenHeight, 32, 16);
       const rightMesh = new THREE.Mesh(rightGeo, this.shaderMaterial);
-      rightMesh.position.set(w2 / 2.0, screenHeight / 2.0, 0); // Center shifted to X = W2/2 so left edge is at X=0
-      this.screenGroup.add(rightMesh);
+      rightMesh.position.set(w2 / 2.0, screenHeight / 2.0, 0); // Left edge sits at X=0
+      lshapeGroup.add(rightMesh);
 
       // 2. Left wall (hinged at origin X=0, Y=0, Z=0, rotating around vertical Y-axis)
       const leftGeo = new THREE.PlaneGeometry(w1, screenHeight, 32, 16);
       const leftMesh = new THREE.Mesh(leftGeo, this.shaderMaterial);
-      leftMesh.position.set(-w1 / 2.0, screenHeight / 2.0, 0); // Center shifted to X = -W1/2 so right edge is at X=0
+      leftMesh.position.set(-w1 / 2.0, screenHeight / 2.0, 0); // Right edge sits at X=0
 
       const leftHinge = new THREE.Group();
       leftHinge.add(leftMesh);
@@ -186,8 +199,12 @@ export class CanvasView {
       // Rotate around vertical Y-axis. 180 degrees is flat, <180 folds forward (+Z)
       const angleRad = ((180 - lshapeAngle) * Math.PI) / 180.0;
       leftHinge.rotation.y = angleRad;
+      lshapeGroup.add(leftHinge);
 
-      this.screenGroup.add(leftHinge);
+      // Rotate the entire L-shape assembly by 180 degrees about the X-axis as requested
+      lshapeGroup.rotation.x = Math.PI;
+
+      this.screenGroup.add(lshapeGroup);
 
     } else if (screenMode === 'cylinder') {
       // Create a standard full cylinder, open ended
@@ -280,8 +297,13 @@ export class CanvasView {
       // Target camera position (matching Projector Camera world position)
       const targetPos = new THREE.Vector3().copy(this.projectorCamera.position);
       
-      // Target viewing target
-      const targetY = this.state.screenMode === 'sphere' ? 0 : this.state.screenHeight / 2;
+      // Target viewing target: Flat/Cylinder -> screenHeight/2, Sphere -> 0, L-Shape (X-rotated) -> -screenHeight/2
+      let targetY = this.state.screenHeight / 2;
+      if (this.state.screenMode === 'sphere') {
+        targetY = 0;
+      } else if (this.state.screenMode === 'lshape') {
+        targetY = -this.state.screenHeight / 2;
+      }
       const targetLookAt = new THREE.Vector3(0, targetY, 0);
 
       this.camera.position.lerpVectors(this.lerpStartPos, targetPos, ease);
