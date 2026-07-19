@@ -131,13 +131,8 @@ export class CanvasView {
    */
   updateProjector() {
     this.projectorCamera.position.set(this.state.projX, this.state.projY, this.state.projZ);
-    // Projector target Y: Flat/Cylinder -> screenHeight/2, Sphere -> 0, L-Shape (X-rotated) -> -screenHeight/2
-    let targetY = this.state.screenHeight / 2;
-    if (this.state.screenMode === 'sphere') {
-      targetY = 0;
-    } else if (this.state.screenMode === 'lshape') {
-      targetY = -this.state.screenHeight / 2;
-    }
+    // Projector points directly at the screen center (Flat/Cylinder/L-shape -> screenHeight/2, Sphere -> 0)
+    const targetY = this.state.screenMode === 'sphere' ? 0 : this.state.screenHeight / 2;
     this.projectorCamera.lookAt(new THREE.Vector3(0, targetY, 0));
     
     this.projectorCamera.fov = this.state.projFov;
@@ -203,6 +198,8 @@ export class CanvasView {
 
       // Rotate the entire L-shape assembly by 180 degrees about the X-axis as requested
       lshapeGroup.rotation.x = Math.PI;
+      // Shift it upwards by screenHeight to sit on the ground plane (Y >= 0)
+      lshapeGroup.position.y = screenHeight;
 
       this.screenGroup.add(lshapeGroup);
 
@@ -297,13 +294,8 @@ export class CanvasView {
       // Target camera position (matching Projector Camera world position)
       const targetPos = new THREE.Vector3().copy(this.projectorCamera.position);
       
-      // Target viewing target: Flat/Cylinder -> screenHeight/2, Sphere -> 0, L-Shape (X-rotated) -> -screenHeight/2
-      let targetY = this.state.screenHeight / 2;
-      if (this.state.screenMode === 'sphere') {
-        targetY = 0;
-      } else if (this.state.screenMode === 'lshape') {
-        targetY = -this.state.screenHeight / 2;
-      }
+      // Target viewing target
+      const targetY = this.state.screenMode === 'sphere' ? 0 : this.state.screenHeight / 2;
       const targetLookAt = new THREE.Vector3(0, targetY, 0);
 
       this.camera.position.lerpVectors(this.lerpStartPos, targetPos, ease);
