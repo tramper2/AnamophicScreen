@@ -144,15 +144,16 @@ export class CanvasView {
    * Disposes of previous geometries to prevent memory leaks (Garbage Collection).
    */
   rebuildScreen() {
-    // Clear screen group
+    // Clear screen group with recursive garbage collection disposal
     while (this.screenGroup.children.length > 0) {
       const child = this.screenGroup.children[0];
       this.screenGroup.remove(child);
       
-      // Dispose geometry (Crucial for Garbage Collection)
-      if (child.geometry) {
-        child.geometry.dispose();
-      }
+      child.traverse((node) => {
+        if (node.isMesh && node.geometry) {
+          node.geometry.dispose();
+        }
+      });
     }
 
     const { screenMode, screenWidth, screenHeight, lshapeDepth, lshapeAngle, screenRadius, screenArc } = this.state;
@@ -164,71 +165,55 @@ export class CanvasView {
       this.screenGroup.add(mesh);
 
     } else if (screenMode === 'lshape') {
-      // 1. Front vertical screen
-      const frontGeo = new THREE.PlaneGeometry(screenWidth, screenHeight, 32, 16);
-      const frontMesh = new THREE.Mesh(frontGeo, this.shaderMaterial);
-      frontMesh.position.y = screenHeight / 2;
-      this.screenGroup.add(frontMesh);
+      // 1:2 split of the screen width
+      const w1 = screenWidth / 3.0; // Left wall width
+      const w2 = (screenWidth * 2.0) / 3.0; // Right wall width
 
-      // 2. Bottom folded screen
-      const floorGeo = new THREE.PlaneGeometry(screenWidth, lshapeDepth, 32, 16);
-      const floorMesh = new THREE.Mesh(floorGeo, this.shaderMaterial);
-      
-      // We wrap the floor in a hinge group to rotate it cleanly around the shared edge (Y=0, Z=0)
-      const floorHinge = new THREE.Group();
-      floorMesh.position.z = lshapeDepth / 2; // Offset center so the edge is at local origin
-      
-      // Face up (rotate -90 degrees about X initially)
-      floorMesh.rotation.x = -Math.PI / 2;
-      
-      floorHinge.add(floorMesh);
-      
-      // Apply the folding bend angle relative to the back wall
-      const angleRad = (lshapeAngle - 90) * Math.PI / 180;
-      floorHinge.rotation.x = angleRad;
-      
-      this.screenGroup.add(floorHinge);
+      // 1. Right wall (flat along X axis, extends from X=0 to W2)
+      const rightGeo = new THREE.PlaneGeometry(w2, screenHeight, 32, 16);
+      const rightMesh = new THREE.Mesh(rightGeo, this.shaderMaterial);
+      rightMesh.position.set(w2 / 2.0, screenHeight / 2.0, 0); // Center shifted to X = W2/2 so left edge is at X=0
+      this.screenGroup.add(rightMesh);
+
+      // 2. Left wall (hinged at origin X=0, Y=0, Z=0, rotating around vertical Y-axis)
+      const leftGeo = new THREE.PlaneGeometry(w1, screenHeight, 32, 16);
+      const leftMesh = new THREE.Mesh(leftGeo, this.shaderMaterial);
+      leftMesh.position.set(-w1 / 2.0, screenHeight / 2.0, 0); // Center shifted to X = -W1/2 so right edge is at X=0
+
+      const leftHinge = new THREE.Group();
+      leftHinge.add(leftMesh);
+
+      // Rotate around vertical Y-axis. 180 degrees is flat, <180 folds forward (+Z)
+      const angleRad = ((180 - lshapeAngle) * Math.PI) / 180.0;
+      leftHinge.rotation.y = angleRad;
+
+      this.screenGroup.add(leftHinge);
 
     } else if (screenMode === 'cylinder') {
-      const arcRad = (screenArc * Math.PI) / 180;
-      // Start cylinder segment centered around the back
-      const thetaStart = Math.PI * 1.5 - arcRad / 2;
-      
+      // Create a standard full cylinder, open ended
       const geo = new THREE.CylinderGeometry(
         screenRadius,       // top radius
         screenRadius,       // bottom radius
         screenHeight,       // height
         64,                 // radial segments
         16,                 // height segments
-        true,               // open ended
-        thetaStart,
-        arcRad
+        true                // open ended
       );
       
       const mesh = new THREE.Mesh(geo, this.shaderMaterial);
       mesh.position.y = screenHeight / 2;
-      // Move cylinder back so its apex touches Z=0 for comparative alignment
-      mesh.position.z = screenRadius;
-      
       this.screenGroup.add(mesh);
 
     } else if (screenMode === 'sphere') {
-      const arcRad = (screenArc * Math.PI) / 180;
-      const phiStart = Math.PI * 1.5 - arcRad / 2;
-      
-      // Dome-like structure mapping inside the sphere
+      // Create a standard full sphere
       const geo = new THREE.SphereGeometry(
         screenRadius,       // radius
         64,                 // width segments
-        32,                 // height segments
-        phiStart,           // phiStart
-        arcRad,             // phiLength
-        Math.PI / 4,        // thetaStart
-        Math.PI / 2         // thetaLength
+        32                  // height segments
       );
       
       const mesh = new THREE.Mesh(geo, this.shaderMaterial);
-      mesh.position.z = screenRadius;
+      mesh.position.y = 0; // Sphere centered at Y=0
       this.screenGroup.add(mesh);
     }
   }
